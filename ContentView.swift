@@ -1,44 +1,59 @@
+//
+//  ContentView.swift
+//  PhotoPicker_View_SwiftUI_4
+//
+//  Created by Haaris Iqubal on 9/11/22.
+//
+
 import SwiftUI
 import PhotosUI
-struct ContentView: View {
 
-    @State private var selectedItems : [PhotosPickerItem] = []
-    @State var data:Data?
+struct ContentView: View {
+    
+    @State private var selectedImage:[PhotosPickerItem] = []
+    @State private var selectedImageData: [Data?] = []
     
     var body: some View {
-        VStack{
-            if let data = data, let uiimage = UIImage(data: data){
-                Image(uiImage: uiimage)
-                    .resizable()
-            }
-            PhotosPicker(selection: $selectedItems,maxSelectionCount:1, matching: .images){
-                Text("Pick the photo")
-                    .frame(width: 100,height: 100)
-            }
-            .onChange(of: selectedItems){
-                newValue in guard let item = selectedItems.first else{
-                    return
+        NavigationStack {
+            VStack{
+                if selectedImageData.count > 0{
+                    // Show Image
+                    ScrollView{
+                        LazyVGrid(columns: [.init(.adaptive(minimum: 200)), .init(.adaptive(minimum: 200))]){
+                            ForEach(selectedImageData, id: \.self){dataItem in
+                                if let dataItem = dataItem, let uiImage = UIImage(data: dataItem){
+                                    Image(uiImage: uiImage).resizable().frame(width: 180, height: 150).aspectRatio(contentMode: .fill).cornerRadius(10)
+                                }
+                            }
+                        }
+                        .padding()
+                    }
                 }
-                item.loadTransferable(type: Data.self){
-                    Result in switch Result{
-                    case .success(let data):
-                        if let data = data{
-                            self.data = data
+                else{
+                    Spacer()
+                    Text("Please select image by tapping on photo icon on toolbar").foregroundColor(.gray).font(.system(size: 25)).bold().multilineTextAlignment(.center)
+                }
+                Spacer()
+                Text("\(selectedImageData.count) photos")
+            }
+            .navigationTitle("Photo Album")
+            .toolbar{
+                PhotosPicker(selection: $selectedImage,maxSelectionCount: 50 ,matching: .images, label: {
+                    Image(systemName: "photo.fill").tint(.mint)
+                })
+                .onChange(of: selectedImage){newItem in
+                    Task{
+                        selectedImage = []
+                        for item in newItem {
+                            if let data = try? await item.loadTransferable(type: Data.self){
+                                selectedImageData.append(data)
+                            }
                         }
-                        else{
-                            print("Data is nil")
-                        }
-                    case .failure(let failure):
-                        fatalError("\(failure)")
                     }
                 }
             }
         }
     }
-    
-   
-    
-   
 }
 
 struct ContentView_Previews: PreviewProvider {
@@ -46,4 +61,3 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
     }
 }
-
